@@ -1,0 +1,401 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gabriel-namespace
+---
+
+#config para postgres
+
+# Volumen persistente 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-postgres-gabriel-vol1
+  namespace: gabriel-namespace
+spec: #Configuración de lo que va a contruir a nivel de disco
+  storageClassName: gabrielpostgres
+  capacity:
+    storage: 10Gi # Capacidad
+  accessModes:
+    - ReadWriteOnce # Lectura y escritura
+  hostPath:
+    path: "/mnt/postgres-gabriel-vol1" # Lugar donde guardara los datos
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-postgres-gabriel
+  namespace: gabriel-namespace
+  volumename: pv-postgres-gabriel-vol1
+spec:
+  storageClassName: gabrielpostgres
+  accessModes:
+    - ReadWriteOnce
+  resources: #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gabrielpostgres
+  namespace: gabriel-namespace
+provisioner: kubernetes.io/no-provisioner #no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain #Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+---
+
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+data:
+  postgres_password: "palabra8"
+  postgres_user: "postgres"
+  postgres_db: "practica"
+  ---
+
+#DEPLOY postgres
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-gabriel-deployment
+  namespace: gabriel-namespace
+  labels:
+    app: postgres-server-gabriel
+spec:
+  selector:
+    matchLabels:
+      app: postgres-server-gabriel
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres-server-gabriel
+    spec:
+      containers:
+      - image: postgres:11  #docker pull image
+        name: postgres-db1-gabriel
+        ports:
+        - containerPort: 5432
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /var/lib/postgresql-gabriel/data
+          name: postgres-gabriel-volume1
+        env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: postgres_password
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: postgres_user
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-config
+                  key: postgres_db
+      volumes:
+      - name: postgres-gabriel-volume1
+      configMap:
+        name: postgres-gabriel
+      persistentVolumeClaim:
+        claimName: pvc-postgres-gabriel
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-postgres-gabriel
+  namespace: gabriel-namespace
+spec:
+  selector:
+    app: postgres-server-gabriel
+  ports:
+    - port: 5600
+      targetPort: 5432
+  type: LoadBalancer
+---
+
+#config para mysql
+
+# Volumen persistente 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-mysql-gabriel-vol1
+  namespace: gabriel-namespace
+spec: #Configuración de lo que va a contruir a nivel de disco
+  storageClassName: gabrielmysql
+  capacity:
+    storage: 10Gi # Capacidad
+  accessModes:
+    - ReadWriteOnce # Lectura y escritura
+  hostPath:
+    path: "/mnt/mysql-gabrielmysql-vol1" # Lugar donde guardara los datos
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-mysql-gabriel
+  namespace: gabriel-namespace
+  volumename: pv-mysql-gabriel-vol1
+spec:
+  storageClassName: gabrielmysql
+  accessModes:
+    - ReadWriteOnce
+  resources: #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gabrielmysql
+  namespace: gabriel-namespace
+provisioner: kubernetes.io/no-provisioner #no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain #Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+---
+
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+data:
+  mysql_password: "palabra8"
+---
+
+#DEPLOY mysql
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-gabriel-deployment
+  namespace: gabriel-namespace
+  labels:
+    app: mysql-server-gabriel
+spec:
+  selector:
+    matchLabels:
+      app: mysql-server-gabriel
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql-server-gabriel
+    spec:
+      containers:
+      - image: mysql:5.6
+        name: mysql-gabriel
+        env:
+          # Use secret in real usage
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+              configMapKeyRef:
+                name: mysql-config
+                key: mysql_password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: pv-mysql-gabriel-vol1
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: pv-mysql-gabriel-vol1
+      configMap: 
+        name: mysql
+        persistentVolumeClaim:
+          claimName: pvc-mysql-gabriel
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-mysql-gabriel
+  namespace: gabriel-namespace
+spec:
+  selector:
+    app: mysql-server-gabriel
+  ports:
+    - port: 5620
+      targetPort: 3306
+  type: LoadBalancer
+---
+
+#config para mongo
+
+# Volumen persistente 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-mongo-gabriel-vol1
+  namespace: gabriel-namespace
+spec: #Configuración de lo que va a contruir a nivel de disco
+  storageClassName: gabrielmongo
+  capacity:
+    storage: 10Gi # Capacidad
+  accessModes:
+    - ReadWriteOnce # Lectura y escritura
+  hostPath:
+    path: "/mnt/mongo-gabriel-vol1" # Lugar donde guardara los datos
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-mongo-gabriel
+  namespace: gabriel-namespace
+  volumename: pv-mongo-gabriel-vol1
+spec:
+  storageClassName: gabrielmongo
+  accessModes:
+    - ReadWriteOnce
+  resources: #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gabrielmongo
+  namespace: gabriel-namespace
+provisioner: kubernetes.io/no-provisioner #no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain #Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+---
+
+#DEPLOY mongo
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-gabriel-deployment
+  namespace: gabriel-namespace
+  labels:
+    app: mongo-server
+spec:
+  selector:
+    matchLabels:
+      app: mongo-server-gabriel
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app:  mongo-server-gabriel 
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:4
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - mountPath: /data/db  
+          name: pv-mongo-gabriel-vol1
+      volumes:
+      - name: pv-mongo-gabriel-vol1
+        persistentVolumeClaim:
+          claimName: pvc-mongo-gabriel 
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-mongo-gabriel
+spec:
+  selector:
+    app: mongo-server-gabriel
+  ports:
+    - port: 5630
+      targetPort: 27017
+  type: LoadBalancer
+---
+
+#config para redis
+# Volumen persistente 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-redis-gabriel-vol1
+  namespace: gabriel-namespace
+spec: #Configuración de lo que va a contruir a nivel de disco
+  storageClassName: gabrielredis
+  capacity:
+    storage: 10Gi # Capacidad
+  accessModes:
+    - ReadWriteOnce # Lectura y escritura
+  hostPath:
+    path: "/mnt/redis-gabriel-vol1" # Lugar donde guardara los datos
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-redis-gabriel
+  namespace: gabriel-namespace
+  volumename: pv-redis-gabriel-vol1
+spec:
+  storageClassName: gabrielredis
+  accessModes:
+    - ReadWriteOnce
+  resources: #Configuración de lo que va a reclamar
+    requests:
+      storage: 5Gi
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gabrielredis
+  namespace: gabriel-namespace
+provisioner: kubernetes.io/no-provisioner #no-provisioner -> Entorno de de infraestructura local
+reclaimPolicy: Retain #Que realizara con mis datos 
+volumeBindingMode: WaitForFirstConsumer
+---
+
+    #DEPLOY redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: redis-gabriel-deployment
+    namespace: gabriel-namespace
+    labels:
+      app: redis-server
+spec:
+  replicas: 1 
+  selector:
+    matchLabels: 
+      app: redis-server
+  template: 
+    metadata:
+      labels: 
+        app: redis-server
+    spec:
+      containers:
+        - name: redis
+          image: redis
+          ports:        
+            - containerPort: 6379
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-redis-gabriel
+spec:
+  type: LoadBalancer
+  selector:
+    app: redis-server
+  ports:
+  - port: 5640
+    targetPort: 6379
+    protocol: TCP
