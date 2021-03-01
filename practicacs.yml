@@ -118,7 +118,7 @@ spec:
   selector:
     app: postgres-server-gabriel
   ports:
-    - port: 5600
+    - port: 5300
       targetPort: 5432
   type: LoadBalancer
 ---
@@ -226,7 +226,7 @@ spec:
   selector:
     app: mysql-server-gabriel
   ports:
-    - port: 5620
+    - port: 5303
       targetPort: 3306
   type: LoadBalancer
 ---
@@ -315,7 +315,7 @@ spec:
   selector:
     app: mongo-server-gabriel
   ports:
-    - port: 5630
+    - port: 5302
       targetPort: 27017
   type: LoadBalancer
 ---
@@ -396,6 +396,6 @@ spec:
   selector:
     app: redis-server
   ports:
-  - port: 5640
+  - port: 5301
     targetPort: 6379
     protocol: TCP
